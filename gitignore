@@ -1,0 +1,29 @@
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Archivos temporales
+*.tmp
+*.bak
+*.log
+
+# Node (si se usa en futuras versiones)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Archivos de prueba
+test/
+*.test.xlsx
+prueba_*.xlsx
+
+# Datos sensibles (ejemplos de nóminas reales)
+nominas_reales/
+datos_empleados_reales/

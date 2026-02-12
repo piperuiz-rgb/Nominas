@@ -218,6 +218,12 @@
             margin-bottom: 24px;
         }
 
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
         label {
             display: block;
             font-weight: 500;
@@ -296,6 +302,15 @@
 
         .btn-danger:hover {
             background: #DC2626;
+        }
+
+        .btn-success {
+            background: var(--secondary);
+            color: var(--white);
+        }
+
+        .btn-success:hover {
+            background: #00B67A;
         }
 
         .file-info {
@@ -571,6 +586,67 @@
             font-size: 14px;
         }
 
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.visible {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--gray-500);
+            padding: 0;
+            width: 32px;
+            height: 32px;
+        }
+
+        .modal-close:hover {
+            color: var(--dark);
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
         footer {
             text-align: center;
             padding: 40px 20px;
@@ -603,6 +679,11 @@
             .nav-tabs {
                 overflow-x: auto;
             }
+
+            .modal-content {
+                width: 95%;
+                padding: 24px;
+            }
         }
     </style>
 </head>
@@ -611,7 +692,7 @@
         <div class="header-content">
             <div>
                 <div class="logo-text"><span class="logo-accent">◆</span> Charo Ruiz Ibiza</div>
-                <div class="header-subtitle">Herramienta de Gestión Contable</div>
+                <div class="header-subtitle">Sistema de Gestión de Nóminas</div>
             </div>
         </div>
     </header>
@@ -736,6 +817,10 @@
                         <div class="card-title">Base de Datos de Empleados</div>
                     </div>
                     <div class="actions">
+                        <button class="btn btn-success" onclick="mostrarModalEmpleado()">
+                            <span>+</span>
+                            <span>Nuevo Empleado</span>
+                        </button>
                         <button class="btn btn-secondary" onclick="exportarEmpleados()">
                             <span>↓</span>
                             <span>Exportar</span>
@@ -780,9 +865,50 @@
         </div>
     </div>
 
+    <!-- MODAL EMPLEADO -->
+    <div id="modalEmpleado" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalEmpleadoTitle">Nuevo Empleado</h3>
+                <button class="modal-close" onclick="cerrarModalEmpleado()">×</button>
+            </div>
+
+            <div class="form-group">
+                <label for="empCodigo">Código Empleado</label>
+                <input type="text" id="empCodigo" placeholder="000001" maxlength="6">
+            </div>
+
+            <div class="form-group">
+                <label for="empDepartamento">Departamento</label>
+                <select id="empDepartamento">
+                    <option value="">Seleccionar...</option>
+                    <option value="1">1 - Logística</option>
+                    <option value="2">2 - Marketing</option>
+                    <option value="3">3 - Comercial</option>
+                    <option value="4">4 - Producción</option>
+                    <option value="5">5 - Administración</option>
+                    <option value="6">6 - Dirección</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="empCentro">Centro(s) de Trabajo</label>
+                <input type="text" id="empCentro" placeholder="Ej: 4  o  1 2 3">
+                <small style="color: var(--gray-500); font-size: 13px; display: block; margin-top: 4px;">
+                    Puede indicar uno o varios centros separados por espacios (ej: "1 2 3")
+                </small>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="cerrarModalEmpleado()">Cancelar</button>
+                <button class="btn btn-primary" onclick="guardarEmpleado()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
     <footer>
         <div class="footer-logo">Charo Ruiz Ibiza</div>
-        <p>Desarrollado con tecnología JOOR para optimización contable</p>
+        <p>Sistema de Gestión de Nóminas v1.0</p>
     </footer>
 
     <script>
@@ -794,7 +920,7 @@
             addHistorico: (entry) => {
                 const hist = DB.getHistorico();
                 hist.unshift(entry);
-                if (hist.length > 50) hist.pop(); // Máximo 50 entradas
+                if (hist.length > 50) hist.pop();
                 localStorage.setItem('historico', JSON.stringify(hist));
             },
             clearHistorico: () => localStorage.setItem('historico', '[]')
@@ -819,6 +945,7 @@
 
         let nominasData = null;
         let currentDistribucion = null;
+        let editandoEmpleado = null;
 
         // ELEMENTOS DOM
         const uploadZone = document.getElementById('uploadZone');
@@ -942,7 +1069,6 @@
 
                     const numEmpleadoStr = String(numEmp).padStart(6, '0');
 
-                    // Usar departamento/centro del archivo o de la BD
                     let departamento = parseInt(row[colIndices.departamento]) || 0;
                     let centro = String(row[colIndices.centro] || '').trim();
 
@@ -1011,68 +1137,51 @@
 
         function calcularDistribucion(empleados) {
             const dist = {
-                departamentos: {},
-                centros: {},
+                departamentos: { cuenta640: {}, cuenta642: {} },
+                centros: { cuenta640: {}, cuenta642: {} },
             };
+
+            let total640 = 0;
+            let total642 = 0;
 
             empleados.forEach(emp => {
                 const numCentros = emp.centros.length || 1;
                 const factorCentro = 1 / numCentros;
 
-                if (!dist.departamentos[emp.departamento]) {
-                    dist.departamentos[emp.departamento] = {
-                        irpfDin: 0,
-                        irpfEsp: 0,
-                        irpfIrr: 0,
-                        baseExenta: 0,
-                        ssEmpresa: 0
-                    };
+                // Cuenta 640: suma de todas las bases
+                const importe640 = emp.irpfDin + emp.irpfEsp + emp.irpfIrr + emp.baseExenta;
+                // Cuenta 642: SS Empresa
+                const importe642 = emp.ssEmpresa;
+
+                total640 += importe640;
+                total642 += importe642;
+
+                // Por departamento
+                if (!dist.departamentos.cuenta640[emp.departamento]) {
+                    dist.departamentos.cuenta640[emp.departamento] = 0;
+                }
+                if (!dist.departamentos.cuenta642[emp.departamento]) {
+                    dist.departamentos.cuenta642[emp.departamento] = 0;
                 }
 
-                const dept = dist.departamentos[emp.departamento];
-                dept.irpfDin += emp.irpfDin;
-                dept.irpfEsp += emp.irpfEsp;
-                dept.irpfIrr += emp.irpfIrr;
-                dept.baseExenta += emp.baseExenta;
-                dept.ssEmpresa += emp.ssEmpresa;
+                dist.departamentos.cuenta640[emp.departamento] += importe640;
+                dist.departamentos.cuenta642[emp.departamento] += importe642;
 
+                // Por centro (proporcional si tiene múltiples)
                 emp.centros.forEach(centro => {
-                    if (!dist.centros[centro]) {
-                        dist.centros[centro] = {
-                            irpfDin: 0,
-                            irpfEsp: 0,
-                            irpfIrr: 0,
-                            baseExenta: 0,
-                            ssEmpresa: 0
-                        };
+                    if (!dist.centros.cuenta640[centro]) {
+                        dist.centros.cuenta640[centro] = 0;
+                    }
+                    if (!dist.centros.cuenta642[centro]) {
+                        dist.centros.cuenta642[centro] = 0;
                     }
 
-                    const ctr = dist.centros[centro];
-                    ctr.irpfDin += emp.irpfDin * factorCentro;
-                    ctr.irpfEsp += emp.irpfEsp * factorCentro;
-                    ctr.irpfIrr += emp.irpfIrr * factorCentro;
-                    ctr.baseExenta += emp.baseExenta * factorCentro;
-                    ctr.ssEmpresa += emp.ssEmpresa * factorCentro;
+                    dist.centros.cuenta640[centro] += importe640 * factorCentro;
+                    dist.centros.cuenta642[centro] += importe642 * factorCentro;
                 });
             });
 
-            const totales = {
-                irpfDin: 0,
-                irpfEsp: 0,
-                irpfIrr: 0,
-                baseExenta: 0,
-                ssEmpresa: 0
-            };
-
-            Object.values(dist.departamentos).forEach(d => {
-                totales.irpfDin += d.irpfDin;
-                totales.irpfEsp += d.irpfEsp;
-                totales.irpfIrr += d.irpfIrr;
-                totales.baseExenta += d.baseExenta;
-                totales.ssEmpresa += d.ssEmpresa;
-            });
-
-            dist.totales = totales;
+            dist.totales = { cuenta640: total640, cuenta642: total642 };
             return dist;
         }
 
@@ -1100,13 +1209,13 @@
             const grid = document.getElementById('distributionGrid');
             grid.innerHTML = '';
 
-            const deptCard = document.createElement('div');
-            deptCard.className = 'dist-card';
-            deptCard.innerHTML = `
-                <div class="dist-card-title">📊 Por Departamento</div>
-                ${Object.entries(dist.departamentos).map(([deptId, valores]) => {
-                    const total = valores.irpfDin + valores.irpfEsp + valores.irpfIrr + valores.baseExenta + valores.ssEmpresa;
-                    const pct = ((total / (dist.totales.irpfDin + dist.totales.irpfEsp + dist.totales.irpfIrr + dist.totales.baseExenta + dist.totales.ssEmpresa)) * 100).toFixed(1);
+            // Cuenta 640 por departamento
+            const dept640Card = document.createElement('div');
+            dept640Card.className = 'dist-card';
+            dept640Card.innerHTML = `
+                <div class="dist-card-title">📊 Cuenta 640 por Departamento</div>
+                ${Object.entries(dist.departamentos.cuenta640).map(([deptId, importe]) => {
+                    const pct = ((importe / dist.totales.cuenta640) * 100).toFixed(1);
                     return `
                         <div class="dist-item">
                             <div class="dist-label">${DEPARTAMENTOS[deptId]}</div>
@@ -1115,15 +1224,32 @@
                     `;
                 }).join('')}
             `;
-            grid.appendChild(deptCard);
+            grid.appendChild(dept640Card);
 
-            const centroCard = document.createElement('div');
-            centroCard.className = 'dist-card';
-            centroCard.innerHTML = `
-                <div class="dist-card-title">🏢 Por Centro de Trabajo</div>
-                ${Object.entries(dist.centros).map(([centroId, valores]) => {
-                    const total = valores.irpfDin + valores.irpfEsp + valores.irpfIrr + valores.baseExenta + valores.ssEmpresa;
-                    const pct = ((total / (dist.totales.irpfDin + dist.totales.irpfEsp + dist.totales.irpfIrr + dist.totales.baseExenta + dist.totales.ssEmpresa)) * 100).toFixed(1);
+            // Cuenta 642 por departamento
+            const dept642Card = document.createElement('div');
+            dept642Card.className = 'dist-card';
+            dept642Card.innerHTML = `
+                <div class="dist-card-title">📊 Cuenta 642 por Departamento</div>
+                ${Object.entries(dist.departamentos.cuenta642).map(([deptId, importe]) => {
+                    const pct = ((importe / dist.totales.cuenta642) * 100).toFixed(1);
+                    return `
+                        <div class="dist-item">
+                            <div class="dist-label">${DEPARTAMENTOS[deptId]}</div>
+                            <div class="dist-value">${pct}%</div>
+                        </div>
+                    `;
+                }).join('')}
+            `;
+            grid.appendChild(dept642Card);
+
+            // Cuenta 640 por centro
+            const centro640Card = document.createElement('div');
+            centro640Card.className = 'dist-card';
+            centro640Card.innerHTML = `
+                <div class="dist-card-title">🏢 Cuenta 640 por Centro</div>
+                ${Object.entries(dist.centros.cuenta640).map(([centroId, importe]) => {
+                    const pct = ((importe / dist.totales.cuenta640) * 100).toFixed(1);
                     return `
                         <div class="dist-item">
                             <div class="dist-label">${CENTROS[centroId]}</div>
@@ -1132,30 +1258,24 @@
                     `;
                 }).join('')}
             `;
-            grid.appendChild(centroCard);
+            grid.appendChild(centro640Card);
 
-            const card640 = document.createElement('div');
-            card640.className = 'dist-card';
-            card640.innerHTML = `
-                <div class="dist-card-title">💰 Cuenta 640 por Tipo</div>
-                <div class="dist-item">
-                    <div class="dist-label">Dinerarios</div>
-                    <div class="dist-value">${formatCurrency(dist.totales.irpfDin)}</div>
-                </div>
-                <div class="dist-item">
-                    <div class="dist-label">En Especie</div>
-                    <div class="dist-value">${formatCurrency(dist.totales.irpfEsp)}</div>
-                </div>
-                <div class="dist-item">
-                    <div class="dist-label">Irregulares</div>
-                    <div class="dist-value">${formatCurrency(dist.totales.irpfIrr)}</div>
-                </div>
-                <div class="dist-item">
-                    <div class="dist-label">Exentos</div>
-                    <div class="dist-value">${formatCurrency(dist.totales.baseExenta)}</div>
-                </div>
+            // Cuenta 642 por centro
+            const centro642Card = document.createElement('div');
+            centro642Card.className = 'dist-card';
+            centro642Card.innerHTML = `
+                <div class="dist-card-title">🏢 Cuenta 642 por Centro</div>
+                ${Object.entries(dist.centros.cuenta642).map(([centroId, importe]) => {
+                    const pct = ((importe / dist.totales.cuenta642) * 100).toFixed(1);
+                    return `
+                        <div class="dist-item">
+                            <div class="dist-label">${CENTROS[centroId]}</div>
+                            <div class="dist-value">${pct}%</div>
+                        </div>
+                    `;
+                }).join('')}
             `;
-            grid.appendChild(card640);
+            grid.appendChild(centro642Card);
         }
 
         function formatCurrency(value) {
@@ -1191,7 +1311,6 @@
                     const filename = `Asiento_Nominas_${referencia.replace(/\s+/g, '_')}.xlsx`;
                     descargarExcel(wb, filename);
 
-                    // Guardar en histórico
                     const totales = nominasData.reduce((acc, emp) => ({
                         empleados: acc.empleados + 1,
                         bruto: acc.bruto + emp.totBruto,
@@ -1404,7 +1523,78 @@
             XLSX.writeFile(wb, filename);
         }
 
-        // FUNCIONES DE BASE DE DATOS DE EMPLEADOS
+        // FUNCIONES CRUD EMPLEADOS
+        function mostrarModalEmpleado(codigo = null) {
+            const modal = document.getElementById('modalEmpleado');
+            const title = document.getElementById('modalEmpleadoTitle');
+            
+            if (codigo) {
+                // EDITAR
+                const empleados = DB.getEmpleados();
+                const emp = empleados[codigo];
+                
+                title.textContent = 'Editar Empleado';
+                document.getElementById('empCodigo').value = codigo;
+                document.getElementById('empCodigo').disabled = true;
+                document.getElementById('empDepartamento').value = emp.departamento || '';
+                document.getElementById('empCentro').value = emp.centro || '';
+                
+                editandoEmpleado = codigo;
+            } else {
+                // NUEVO
+                title.textContent = 'Nuevo Empleado';
+                document.getElementById('empCodigo').value = '';
+                document.getElementById('empCodigo').disabled = false;
+                document.getElementById('empDepartamento').value = '';
+                document.getElementById('empCentro').value = '';
+                
+                editandoEmpleado = null;
+            }
+            
+            modal.classList.add('visible');
+        }
+
+        function cerrarModalEmpleado() {
+            document.getElementById('modalEmpleado').classList.remove('visible');
+            editandoEmpleado = null;
+        }
+
+        function guardarEmpleado() {
+            const codigo = document.getElementById('empCodigo').value.trim().padStart(6, '0');
+            const departamento = parseInt(document.getElementById('empDepartamento').value) || 0;
+            const centro = document.getElementById('empCentro').value.trim();
+
+            if (!codigo || codigo.length !== 6) {
+                alert('El código debe tener 6 dígitos');
+                return;
+            }
+
+            if (!departamento) {
+                alert('Selecciona un departamento');
+                return;
+            }
+
+            if (!centro) {
+                alert('Indica al menos un centro de trabajo');
+                return;
+            }
+
+            const empleados = DB.getEmpleados();
+            empleados[codigo] = { departamento, centro };
+            DB.setEmpleados(empleados);
+
+            cerrarModalEmpleado();
+            cargarTablaEmpleados();
+
+            const info = document.getElementById('empleadosInfo');
+            const infoText = document.getElementById('empleadosInfoText');
+            infoText.textContent = editandoEmpleado ? 
+                `Empleado ${codigo} actualizado correctamente` :
+                `Empleado ${codigo} creado correctamente`;
+            info.style.display = 'flex';
+            setTimeout(() => info.style.display = 'none', 3000);
+        }
+
         function cargarTablaEmpleados() {
             const empleados = DB.getEmpleados();
             const container = document.getElementById('empleadosTableContainer');
@@ -1414,7 +1604,7 @@
                     <div class="empty-state">
                         <div class="empty-icon">👥</div>
                         <p>No hay empleados registrados</p>
-                        <p style="font-size: 14px; margin-top: 8px;">Importa un archivo Excel para comenzar</p>
+                        <p style="font-size: 14px; margin-top: 8px;">Crea un empleado o importa un archivo Excel</p>
                     </div>
                 `;
                 return;
@@ -1433,14 +1623,17 @@
                     <tbody>
             `;
 
-            Object.entries(empleados).forEach(([codigo, emp]) => {
+            Object.entries(empleados).sort().forEach(([codigo, emp]) => {
                 html += `
                     <tr>
                         <td><span class="badge badge-info">${codigo}</span></td>
                         <td>${DEPARTAMENTOS[emp.departamento] || 'No asignado'}</td>
                         <td>${emp.centro || 'No asignado'}</td>
                         <td>
-                            <button class="btn btn-danger btn-icon" onclick="eliminarEmpleado('${codigo}')">🗑️</button>
+                            <div class="actions">
+                                <button class="btn btn-secondary btn-icon" onclick="mostrarModalEmpleado('${codigo}')" title="Editar">✏️</button>
+                                <button class="btn btn-danger btn-icon" onclick="eliminarEmpleado('${codigo}')" title="Eliminar">🗑️</button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -1463,10 +1656,9 @@
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-                    const empleados = {};
+                    const empleados = DB.getEmpleados();
                     let importados = 0;
 
-                    // Asumimos formato: Código | Departamento | Centro
                     for (let i = 1; i < rows.length; i++) {
                         const row = rows[i];
                         if (!row[0]) continue;
@@ -1509,7 +1701,7 @@
                 ['Código Empleado', 'Departamento', 'Centro']
             ];
 
-            Object.entries(empleados).forEach(([codigo, emp]) => {
+            Object.entries(empleados).sort().forEach(([codigo, emp]) => {
                 data.push([codigo, emp.departamento, emp.centro]);
             });
 
