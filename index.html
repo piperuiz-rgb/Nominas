@@ -951,33 +951,20 @@
             return DEPT_ANALITICO[deptNum] || 'DEP_DIR';
         }
 
-        // Calcula distribución analítica porcentual por departamento a partir de los empleados.
-        // getAmt(emp) devuelve el importe de ese empleado para el concepto que se distribuye.
-        function analiticaDept(empleados, getAmt) {
+        // Agrupa importes por cuenta analítica de departamento.
+        // Devuelve array de {cod, amt} ordenado por código.
+        function importesPorDept(empleados, getAmt) {
             const porDept = {};
-            let total = 0;
             empleados.forEach(emp => {
                 const amt = getAmt(emp);
                 if (amt > 0) {
                     const cod = deptAnalitico(emp.departamento);
                     porDept[cod] = (porDept[cod] || 0) + amt;
-                    total += amt;
                 }
             });
-            if (total === 0) return null;
-            const dist = {};
-            const keys = Object.keys(porDept);
-            let suma = 0;
-            keys.forEach((cod, i) => {
-                if (i < keys.length - 1) {
-                    const pct = Math.round((porDept[cod] / total) * 10000) / 100;
-                    dist[cod] = pct;
-                    suma += pct;
-                } else {
-                    dist[cod] = Math.round((100 - suma) * 100) / 100;
-                }
-            });
-            return JSON.stringify(dist);
+            return Object.entries(porDept)
+                .filter(([, amt]) => amt > 0)
+                .map(([cod, amt]) => ({ cod, amt }));
         }
 
 
@@ -1428,66 +1415,27 @@
 
             const asiento = [];
 
-            const distIrpfDin  = analiticaDept(empleados, e => e.irpfDin);
-            const distIrpfEsp  = analiticaDept(empleados, e => e.irpfEsp);
-            const distIrpfIrr  = analiticaDept(empleados, e => e.irpfIrr);
-            const distExenta   = analiticaDept(empleados, e => e.baseExenta);
-            const distSsEmpresa = analiticaDept(empleados, e => e.ssEmpresa);
+            // Genera una línea por cuenta analítica (departamento) para cuentas de gasto
+            function lineasGasto(getAmt, cuenta, etiqueta, impuestos) {
+                importesPorDept(empleados, getAmt).forEach(({ cod, amt }) => {
+                    asiento.push({
+                        fecha, referencia, diario,
+                        cuenta,
+                        etiqueta,
+                        debe: amt,
+                        haber: null,
+                        impuestos: impuestos || null,
+                        empresa: null,
+                        analitica: cod,
+                    });
+                });
+            }
 
-            if (totales.irpfDin > 0) asiento.push({
-                fecha, referencia, diario,
-                cuenta: 6400000000,
-                etiqueta: 'Sueldos y salarios (dinerarios)',
-                debe: totales.irpfDin,
-                haber: null,
-                impuestos: 'Retenciones IRPF (Trabajadores) dinerarios',
-                empresa: null,
-                analitica: distIrpfDin,
-            });
-
-            if (totales.irpfEsp > 0) asiento.push({
-                fecha, referencia, diario,
-                cuenta: 6400000000,
-                etiqueta: 'Sueldos y salarios (en especie)',
-                debe: totales.irpfEsp,
-                haber: null,
-                impuestos: 'Retenciones IRPF (Trabajadores) en especie',
-                empresa: null,
-                analitica: distIrpfEsp,
-            });
-
-            if (totales.irpfIrr > 0) asiento.push({
-                fecha, referencia, diario,
-                cuenta: 6400000000,
-                etiqueta: 'Sueldos y salarios (irregulares)',
-                debe: totales.irpfIrr,
-                haber: null,
-                impuestos: 'Retenciones IRPF (Trabajadores) dinerarios',
-                empresa: null,
-                analitica: distIrpfIrr,
-            });
-
-            if (totales.baseExenta > 0) asiento.push({
-                fecha, referencia, diario,
-                cuenta: 6400000000,
-                etiqueta: 'Sueldos y salarios (exentos)',
-                debe: totales.baseExenta,
-                haber: null,
-                impuestos: null,
-                empresa: null,
-                analitica: distExenta,
-            });
-
-            if (totales.ssEmpresa > 0) asiento.push({
-                fecha, referencia, diario,
-                cuenta: 6420000000,
-                etiqueta: 'Seguridad Social a cargo empresa',
-                debe: totales.ssEmpresa,
-                haber: null,
-                impuestos: null,
-                empresa: null,
-                analitica: distSsEmpresa,
-            });
+            lineasGasto(e => e.irpfDin,    6400000000, 'Sueldos y salarios (dinerarios)',  'Retenciones IRPF (Trabajadores) dinerarios');
+            lineasGasto(e => e.irpfEsp,    6400000000, 'Sueldos y salarios (en especie)',   'Retenciones IRPF (Trabajadores) en especie');
+            lineasGasto(e => e.irpfIrr,    6400000000, 'Sueldos y salarios (irregulares)', 'Retenciones IRPF (Trabajadores) dinerarios');
+            lineasGasto(e => e.baseExenta, 6400000000, 'Sueldos y salarios (exentos)',      null);
+            lineasGasto(e => e.ssEmpresa,  6420000000, 'Seguridad Social a cargo empresa',  null);
 
             if (totales.ssTotal > 0) asiento.push({
                 fecha, referencia, diario,
