@@ -1058,10 +1058,11 @@
                     vivienda: findColumnIndex(headers, 'VIVIENDA'),
                     dietas: findColumnIndex(headers, 'DIETAS'),
                     anticipo: findColumnIndex(headers, 'ANTICIPO'),
+                    devPrestamo: findColumnIndex(headers, '0705-Dev.'),
                 };
 
                 const missingCols = Object.entries(colIndices)
-                    .filter(([k, v]) => v === -1 && k !== 'departamento' && k !== 'centro')
+                    .filter(([k, v]) => v === -1 && k !== 'departamento' && k !== 'centro' && k !== 'devPrestamo')
                     .map(([k]) => k);
                 if (missingCols.length > 0) {
                     showError('No se encontraron las siguientes columnas en el archivo: ' + missingCols.join(', ') + '. Verifica que el archivo tenga las cabeceras correctas.');
@@ -1108,6 +1109,7 @@
                         vivienda: parseValue(row[colIndices.vivienda]),
                         dietas: parseValue(row[colIndices.dietas]),
                         anticipo: parseValue(row[colIndices.anticipo]),
+                        devPrestamo: colIndices.devPrestamo >= 0 ? parseValue(row[colIndices.devPrestamo]) : 0,
                     };
 
                     empleado.sinDB = sinDB;
@@ -1511,6 +1513,20 @@
                         etiqueta: `Anticipo Emp. ${emp.numero}`,
                         debe: null,
                         haber: anticipoNeto,
+                        impuestos: null,
+                        empresa: null,
+                    });
+                }
+
+                // Devolución préstamo: importe columna 0705-Dev.
+                if (emp.devPrestamo > 0) {
+                    const cuenta254 = 2540000000 + parseInt(emp.numero);
+                    asiento.push({
+                        fecha, referencia, diario,
+                        cuenta: cuenta254,
+                        etiqueta: `Devolución préstamo Emp. ${emp.numero}`,
+                        debe: null,
+                        haber: emp.devPrestamo,
                         impuestos: null,
                         empresa: null,
                     });
