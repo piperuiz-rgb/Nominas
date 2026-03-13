@@ -1486,28 +1486,28 @@
                     });
                 }
 
-                // Dietas: pago anticipado de dietas (evita duplicar si anticipo ya las incluye)
+                // Dietas: ya abonadas con anterioridad, se cancela en el Haber
                 if (emp.dietas > 0) {
                     asiento.push({
                         fecha, referencia, diario,
                         cuenta: cuenta460,
                         etiqueta: `Anticipo Dietas Emp. ${emp.numero}`,
-                        debe: emp.dietas,
-                        haber: null,
+                        debe: null,
+                        haber: emp.dietas,
                         impuestos: null,
                         empresa: null,
                     });
                 }
 
-                // Anticipo neto: parte del anticipo no cubierta por dietas
+                // Anticipo neto: parte ya abonada no cubierta por dietas
                 const anticipoNeto = emp.anticipo - emp.dietas;
                 if (anticipoNeto > 0) {
                     asiento.push({
                         fecha, referencia, diario,
                         cuenta: cuenta460,
                         etiqueta: `Anticipo Emp. ${emp.numero}`,
-                        debe: anticipoNeto,
-                        haber: null,
+                        debe: null,
+                        haber: anticipoNeto,
                         impuestos: null,
                         empresa: null,
                     });
