@@ -1040,8 +1040,8 @@
 
                 const colIndices = {
                     numEmpleado: 0,
-                    departamento: 1,
-                    centro: 2,
+                    departamento: findColumnIndex(headers, 'DEPARTAMENTO'),
+                    centro: findColumnIndex(headers, 'CENTRO'),
                     totBruto: findColumnIndex(headers, 'TOT. BRUTO'),
                     totalLiq: findColumnIndex(headers, 'TOTAL.LIQ.'),
                     ssEmpresa: findColumnIndex(headers, 'SS EMPRESA'),
@@ -1049,13 +1049,21 @@
                     irpfDin: findColumnIndex(headers, 'B.IRPF DIN'),
                     irpfEsp: findColumnIndex(headers, 'B.IRPF ESP'),
                     irpfIrr: findColumnIndex(headers, 'B.IRPF IRR'),
-                    difSala: 12,
-                    seguroM1: 17,
-                    seguroM2: 18,
-                    vivienda: 11,
-                    dietas: 23,
-                    anticipo: 25,
+                    difSala: findColumnIndex(headers, 'DIF SALA'),
+                    seguroM1: findColumnIndex(headers, 'SEGURO M'),
+                    seguroM2: findColumnIndex(headers, 'SEGURO M', 1),
+                    vivienda: findColumnIndex(headers, 'VIVIENDA'),
+                    dietas: findColumnIndex(headers, 'DIETAS'),
+                    anticipo: findColumnIndex(headers, 'ANTICIPO'),
                 };
+
+                const missingCols = Object.entries(colIndices)
+                    .filter(([k, v]) => v === -1 && k !== 'departamento' && k !== 'centro')
+                    .map(([k]) => k);
+                if (missingCols.length > 0) {
+                    showError('No se encontraron las siguientes columnas en el archivo: ' + missingCols.join(', ') + '. Verifica que el archivo tenga las cabeceras correctas.');
+                    return;
+                }
 
                 const empleadosDB = DB.getEmpleados();
                 const empleados = [];
@@ -1069,8 +1077,8 @@
 
                     const numEmpleadoStr = String(numEmp).padStart(6, '0');
 
-                    let departamento = parseInt(row[colIndices.departamento]) || 0;
-                    let centro = String(row[colIndices.centro] || '').trim();
+                    let departamento = (colIndices.departamento >= 0) ? (parseInt(row[colIndices.departamento]) || 0) : 0;
+                    let centro = (colIndices.centro >= 0) ? String(row[colIndices.centro] || '').trim() : '';
 
                     if (empleadosDB[numEmpleadoStr]) {
                         if (!departamento) departamento = empleadosDB[numEmpleadoStr].departamento;
@@ -1121,9 +1129,13 @@
             }
         }
 
-        function findColumnIndex(headers, columnName) {
+        function findColumnIndex(headers, columnName, skip = 0) {
+            let skipped = 0;
             for (let i = 0; i < headers.length; i++) {
-                if (headers[i] && headers[i].toString().includes(columnName)) return i;
+                if (headers[i] && headers[i].toString().includes(columnName)) {
+                    if (skipped >= skip) return i;
+                    skipped++;
+                }
             }
             return -1;
         }
