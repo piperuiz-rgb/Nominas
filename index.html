@@ -980,10 +980,6 @@
             return JSON.stringify(dist);
         }
 
-        // Distribución 100% al departamento de un empleado concreto.
-        function analiticaEmp(emp) {
-            return JSON.stringify({ [deptAnalitico(emp.departamento)]: 100 });
-        }
 
         const CENTROS = {
             1: 'Tienda Ibiza',
@@ -1537,8 +1533,6 @@
                 const cuenta465 = 4650000000 + parseInt(emp.numero);
                 const cuenta460 = 4600000000 + parseInt(emp.numero);
 
-                const empAnalitica = analiticaEmp(emp);
-
                 if (emp.totalLiq > 0) {
                     asiento.push({
                         fecha, referencia, diario,
@@ -1548,7 +1542,6 @@
                         haber: emp.totalLiq,
                         impuestos: null,
                         empresa: null,
-                        analitica: empAnalitica,
                     });
                 }
 
@@ -1562,7 +1555,6 @@
                         haber: emp.dietas,
                         impuestos: null,
                         empresa: null,
-                        analitica: empAnalitica,
                     });
                 }
 
@@ -1577,7 +1569,6 @@
                         haber: anticipoNeto,
                         impuestos: null,
                         empresa: null,
-                        analitica: empAnalitica,
                     });
                 }
 
@@ -1592,7 +1583,6 @@
                         haber: emp.devPrestamo,
                         impuestos: null,
                         empresa: null,
-                        analitica: empAnalitica,
                     });
                 }
             });
