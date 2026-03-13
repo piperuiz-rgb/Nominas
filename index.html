@@ -1079,10 +1079,13 @@
 
                     let departamento = (colIndices.departamento >= 0) ? (parseInt(row[colIndices.departamento]) || 0) : 0;
                     let centro = (colIndices.centro >= 0) ? String(row[colIndices.centro] || '').trim() : '';
+                    let sinDB = false;
 
                     if (empleadosDB[numEmpleadoStr]) {
                         if (!departamento) departamento = empleadosDB[numEmpleadoStr].departamento;
                         if (!centro) centro = empleadosDB[numEmpleadoStr].centro;
+                    } else {
+                        sinDB = true;
                     }
 
                     const empleado = {
@@ -1104,6 +1107,7 @@
                         anticipo: parseValue(row[colIndices.anticipo]),
                     };
 
+                    empleado.sinDB = sinDB;
                     empleado.baseExenta = empleado.totBruto - empleado.irpfDin - empleado.irpfEsp - empleado.irpfIrr;
                     empleado.seguroMTotal = empleado.seguroM1 + empleado.seguroM2;
                     empleado.anticipoNeto = empleado.anticipo - empleado.dietas;
@@ -1118,10 +1122,20 @@
                     return;
                 }
 
+                const sinDBList = empleados.filter(e => e.sinDB).map(e => e.numero);
+
                 nominasData = empleados;
                 showSummary(empleados);
                 generateBtn.disabled = false;
-                hideError();
+
+                if (sinDBList.length > 0) {
+                    showError(
+                        `⚠️ ${sinDBList.length} empleado(s) no encontrado(s) en la base de datos: ${sinDBList.join(', ')}. ` +
+                        `Sin departamento ni centro asignado. Impórtalos en la pestaña "Base de Datos Empleados" y vuelve a cargar el archivo.`
+                    );
+                } else {
+                    hideError();
+                }
 
             } catch (error) {
                 showError('Error al procesar: ' + error.message);
@@ -1458,7 +1472,7 @@
 
             empleados.forEach(emp => {
                 const cuenta465 = 4650000000 + parseInt(emp.numero);
-                
+
                 if (emp.totalLiq > 0) {
                     asiento.push({
                         fecha, referencia, diario,
@@ -1466,30 +1480,6 @@
                         etiqueta: `Nómina Emp. ${emp.numero}`,
                         debe: null,
                         haber: emp.totalLiq,
-                        impuestos: null,
-                        empresa: null,
-                    });
-                }
-
-                if (emp.dietas > 0) {
-                    asiento.push({
-                        fecha, referencia, diario,
-                        cuenta: cuenta465,
-                        etiqueta: `Dietas Emp. ${emp.numero}`,
-                        debe: null,
-                        haber: emp.dietas,
-                        impuestos: null,
-                        empresa: null,
-                    });
-                }
-
-                if (emp.anticipoNeto > 0) {
-                    asiento.push({
-                        fecha, referencia, diario,
-                        cuenta: cuenta465,
-                        etiqueta: `Anticipo Emp. ${emp.numero}`,
-                        debe: null,
-                        haber: emp.anticipoNeto,
                         impuestos: null,
                         empresa: null,
                     });
