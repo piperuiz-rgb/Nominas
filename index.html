@@ -919,8 +919,11 @@
             getHistorico: () => JSON.parse(localStorage.getItem('historico') || '[]'),
             addHistorico: (entry) => {
                 const hist = DB.getHistorico();
+                const mesClave = entry.fecha.slice(0, 7); // 'YYYY-MM'
+                const idx = hist.findIndex(h => h.fecha.slice(0, 7) === mesClave);
+                if (idx >= 0) hist.splice(idx, 1);
                 hist.unshift(entry);
-                if (hist.length > 50) hist.pop();
+                hist.sort((a, b) => b.fecha.localeCompare(a.fecha));
                 localStorage.setItem('historico', JSON.stringify(hist));
             },
             clearHistorico: () => localStorage.setItem('historico', '[]')
