@@ -938,6 +938,53 @@
             6: 'Dirección'
         };
 
+        const DEPT_ANALITICO = {
+            1: 'DEP_LOG',
+            2: 'DEP_MKT',
+            3: 'DEP_COM',
+            4: 'DEP_PROD',
+            5: 'DEP_ADM',
+            6: 'DEP_DIR',
+        };
+
+        function deptAnalitico(deptNum) {
+            return DEPT_ANALITICO[deptNum] || 'DEP_DIR';
+        }
+
+        // Calcula distribución analítica porcentual por departamento a partir de los empleados.
+        // getAmt(emp) devuelve el importe de ese empleado para el concepto que se distribuye.
+        function analiticaDept(empleados, getAmt) {
+            const porDept = {};
+            let total = 0;
+            empleados.forEach(emp => {
+                const amt = getAmt(emp);
+                if (amt > 0) {
+                    const cod = deptAnalitico(emp.departamento);
+                    porDept[cod] = (porDept[cod] || 0) + amt;
+                    total += amt;
+                }
+            });
+            if (total === 0) return null;
+            const dist = {};
+            const keys = Object.keys(porDept);
+            let suma = 0;
+            keys.forEach((cod, i) => {
+                if (i < keys.length - 1) {
+                    const pct = Math.round((porDept[cod] / total) * 10000) / 100;
+                    dist[cod] = pct;
+                    suma += pct;
+                } else {
+                    dist[cod] = Math.round((100 - suma) * 100) / 100;
+                }
+            });
+            return JSON.stringify(dist);
+        }
+
+        // Distribución 100% al departamento de un empleado concreto.
+        function analiticaEmp(emp) {
+            return JSON.stringify({ [deptAnalitico(emp.departamento)]: 100 });
+        }
+
         const CENTROS = {
             1: 'Tienda Ibiza',
             2: 'Tienda Madrid',
@@ -1385,6 +1432,12 @@
 
             const asiento = [];
 
+            const distIrpfDin  = analiticaDept(empleados, e => e.irpfDin);
+            const distIrpfEsp  = analiticaDept(empleados, e => e.irpfEsp);
+            const distIrpfIrr  = analiticaDept(empleados, e => e.irpfIrr);
+            const distExenta   = analiticaDept(empleados, e => e.baseExenta);
+            const distSsEmpresa = analiticaDept(empleados, e => e.ssEmpresa);
+
             if (totales.irpfDin > 0) asiento.push({
                 fecha, referencia, diario,
                 cuenta: 6400000000,
@@ -1393,6 +1446,7 @@
                 haber: null,
                 impuestos: 'Retenciones IRPF (Trabajadores) dinerarios',
                 empresa: null,
+                analitica: distIrpfDin,
             });
 
             if (totales.irpfEsp > 0) asiento.push({
@@ -1403,6 +1457,7 @@
                 haber: null,
                 impuestos: 'Retenciones IRPF (Trabajadores) en especie',
                 empresa: null,
+                analitica: distIrpfEsp,
             });
 
             if (totales.irpfIrr > 0) asiento.push({
@@ -1413,6 +1468,7 @@
                 haber: null,
                 impuestos: 'Retenciones IRPF (Trabajadores) dinerarios',
                 empresa: null,
+                analitica: distIrpfIrr,
             });
 
             if (totales.baseExenta > 0) asiento.push({
@@ -1423,6 +1479,7 @@
                 haber: null,
                 impuestos: null,
                 empresa: null,
+                analitica: distExenta,
             });
 
             if (totales.ssEmpresa > 0) asiento.push({
@@ -1433,6 +1490,7 @@
                 haber: null,
                 impuestos: null,
                 empresa: null,
+                analitica: distSsEmpresa,
             });
 
             if (totales.ssTotal > 0) asiento.push({
@@ -1479,6 +1537,8 @@
                 const cuenta465 = 4650000000 + parseInt(emp.numero);
                 const cuenta460 = 4600000000 + parseInt(emp.numero);
 
+                const empAnalitica = analiticaEmp(emp);
+
                 if (emp.totalLiq > 0) {
                     asiento.push({
                         fecha, referencia, diario,
@@ -1488,6 +1548,7 @@
                         haber: emp.totalLiq,
                         impuestos: null,
                         empresa: null,
+                        analitica: empAnalitica,
                     });
                 }
 
@@ -1501,6 +1562,7 @@
                         haber: emp.dietas,
                         impuestos: null,
                         empresa: null,
+                        analitica: empAnalitica,
                     });
                 }
 
@@ -1515,6 +1577,7 @@
                         haber: anticipoNeto,
                         impuestos: null,
                         empresa: null,
+                        analitica: empAnalitica,
                     });
                 }
 
@@ -1529,6 +1592,7 @@
                         haber: emp.devPrestamo,
                         impuestos: null,
                         empresa: null,
+                        analitica: empAnalitica,
                     });
                 }
             });
@@ -1538,9 +1602,10 @@
 
         function crearExcelAsiento(asiento) {
             const ws_data = [
-                ['Fecha', 'Referencia', 'Diario', 'Apuntes contables/Cuenta', 
-                 'Apuntes Contables/Etiqueta', 'Apuntes contables/Debe', 
-                 'Apuntes contables/Haber', 'Apuntes contables/Impuestos', 'Empresa ']
+                ['Fecha', 'Referencia', 'Diario', 'Apuntes contables/Cuenta',
+                 'Apuntes Contables/Etiqueta', 'Apuntes contables/Debe',
+                 'Apuntes contables/Haber', 'Apuntes contables/Impuestos', 'Empresa ',
+                 'Apuntes contables/Distribución analítica']
             ];
 
             asiento.forEach((linea, index) => {
@@ -1554,6 +1619,7 @@
                     linea.haber,
                     linea.impuestos,
                     linea.empresa,
+                    linea.analitica || null,
                 ]);
             });
 
