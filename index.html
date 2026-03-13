@@ -938,34 +938,6 @@
             6: 'Dirección'
         };
 
-        const DEPT_ANALITICO = {
-            1: 'DEP_LOG',
-            2: 'DEP_MKT',
-            3: 'DEP_COM',
-            4: 'DEP_PROD',
-            5: 'DEP_ADM',
-            6: 'DEP_DIR',
-        };
-
-        function deptAnalitico(deptNum) {
-            return DEPT_ANALITICO[deptNum] || 'DEP_DIR';
-        }
-
-        // Agrupa importes por cuenta analítica de departamento.
-        // Devuelve array de {cod, amt} ordenado por código.
-        function importesPorDept(empleados, getAmt) {
-            const porDept = {};
-            empleados.forEach(emp => {
-                const amt = getAmt(emp);
-                if (amt > 0) {
-                    const cod = deptAnalitico(emp.departamento);
-                    porDept[cod] = (porDept[cod] || 0) + amt;
-                }
-            });
-            return Object.entries(porDept)
-                .filter(([, amt]) => amt > 0)
-                .map(([cod, amt]) => ({ cod, amt }));
-        }
 
 
         const CENTROS = {
@@ -1415,27 +1387,55 @@
 
             const asiento = [];
 
-            // Genera una línea por cuenta analítica (departamento) para cuentas de gasto
-            function lineasGasto(getAmt, cuenta, etiqueta, impuestos) {
-                importesPorDept(empleados, getAmt).forEach(({ cod, amt }) => {
-                    asiento.push({
-                        fecha, referencia, diario,
-                        cuenta,
-                        etiqueta,
-                        debe: amt,
-                        haber: null,
-                        impuestos: impuestos || null,
-                        empresa: null,
-                        analitica: cod,
-                    });
-                });
-            }
+            if (totales.irpfDin > 0) asiento.push({
+                fecha, referencia, diario,
+                cuenta: 6400000000,
+                etiqueta: 'Sueldos y salarios (dinerarios)',
+                debe: totales.irpfDin,
+                haber: null,
+                impuestos: 'Retenciones IRPF (Trabajadores) dinerarios',
+                empresa: null,
+            });
 
-            lineasGasto(e => e.irpfDin,    6400000000, 'Sueldos y salarios (dinerarios)',  'Retenciones IRPF (Trabajadores) dinerarios');
-            lineasGasto(e => e.irpfEsp,    6400000000, 'Sueldos y salarios (en especie)',   'Retenciones IRPF (Trabajadores) en especie');
-            lineasGasto(e => e.irpfIrr,    6400000000, 'Sueldos y salarios (irregulares)', 'Retenciones IRPF (Trabajadores) dinerarios');
-            lineasGasto(e => e.baseExenta, 6400000000, 'Sueldos y salarios (exentos)',      null);
-            lineasGasto(e => e.ssEmpresa,  6420000000, 'Seguridad Social a cargo empresa',  null);
+            if (totales.irpfEsp > 0) asiento.push({
+                fecha, referencia, diario,
+                cuenta: 6400000000,
+                etiqueta: 'Sueldos y salarios (en especie)',
+                debe: totales.irpfEsp,
+                haber: null,
+                impuestos: 'Retenciones IRPF (Trabajadores) en especie',
+                empresa: null,
+            });
+
+            if (totales.irpfIrr > 0) asiento.push({
+                fecha, referencia, diario,
+                cuenta: 6400000000,
+                etiqueta: 'Sueldos y salarios (irregulares)',
+                debe: totales.irpfIrr,
+                haber: null,
+                impuestos: 'Retenciones IRPF (Trabajadores) dinerarios',
+                empresa: null,
+            });
+
+            if (totales.baseExenta > 0) asiento.push({
+                fecha, referencia, diario,
+                cuenta: 6400000000,
+                etiqueta: 'Sueldos y salarios (exentos)',
+                debe: totales.baseExenta,
+                haber: null,
+                impuestos: null,
+                empresa: null,
+            });
+
+            if (totales.ssEmpresa > 0) asiento.push({
+                fecha, referencia, diario,
+                cuenta: 6420000000,
+                etiqueta: 'Seguridad Social a cargo empresa',
+                debe: totales.ssEmpresa,
+                haber: null,
+                impuestos: null,
+                empresa: null,
+            });
 
             if (totales.ssTotal > 0) asiento.push({
                 fecha, referencia, diario,
@@ -1542,8 +1542,7 @@
             const ws_data = [
                 ['Fecha', 'Referencia', 'Diario', 'Apuntes contables/Cuenta',
                  'Apuntes Contables/Etiqueta', 'Apuntes contables/Debe',
-                 'Apuntes contables/Haber', 'Apuntes contables/Impuestos', 'Empresa ',
-                 'Apuntes contables/Distribución analítica']
+                 'Apuntes contables/Haber', 'Apuntes contables/Impuestos', 'Empresa ']
             ];
 
             asiento.forEach((linea, index) => {
@@ -1557,7 +1556,6 @@
                     linea.haber,
                     linea.impuestos,
                     linea.empresa,
-                    linea.analitica || null,
                 ]);
             });
 
