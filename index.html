@@ -1040,8 +1040,24 @@
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
                 const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
 
-                const headerRow = 6;
+                // Detectar la fila de cabeceras buscando 'TOT. BRUTO' en las primeras 20 filas
+                let headerRow = -1;
+                for (let i = 0; i < Math.min(20, data.length); i++) {
+                    if (data[i] && data[i].some(c => c && c.toString().includes('TOT. BRUTO'))) {
+                        headerRow = i;
+                        break;
+                    }
+                }
+                if (headerRow === -1) {
+                    showError('No se encontró la fila de cabeceras en el archivo. Verifica que el Excel sea un fichero de nóminas válido.');
+                    return;
+                }
                 const headers = data[headerRow];
+                // La fila de datos empieza tras la cabecera, saltando posibles filas vacías
+                let dataStartRow = headerRow + 1;
+                while (dataStartRow < data.length && (!data[dataStartRow] || data[dataStartRow].every(c => c === null))) {
+                    dataStartRow++;
+                }
 
                 const colIndices = {
                     numEmpleado: 0,
@@ -1074,7 +1090,7 @@
                 const empleadosDB = DB.getEmpleados();
                 const empleados = [];
                 
-                for (let i = 8; i < data.length; i++) {
+                for (let i = dataStartRow; i < data.length; i++) {
                     const row = data[i];
                     if (!row || !row[colIndices.numEmpleado]) continue;
 
