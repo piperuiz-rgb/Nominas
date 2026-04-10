@@ -1583,6 +1583,17 @@
 
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Asiento Nóminas');
+
+            // Segunda pestaña: copia de seguridad de la base de datos de empleados
+            const empleados = DB.getEmpleados();
+            const emp_data = [['Código Empleado', 'Departamento', 'Centro']];
+            Object.entries(empleados).sort().forEach(([codigo, emp]) => {
+                emp_data.push([codigo, emp.departamento, emp.centro]);
+            });
+            const wsEmp = XLSX.utils.aoa_to_sheet(emp_data);
+            wsEmp['!cols'] = [{ wch: 16 }, { wch: 14 }, { wch: 20 }];
+            XLSX.utils.book_append_sheet(wb, wsEmp, 'Empleados');
+
             return wb;
         }
 
@@ -1720,7 +1731,11 @@
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    // Usar la pestaña 'Empleados' si existe (exportada desde el asiento), si no la primera
+                    const sheetName = workbook.SheetNames.includes('Empleados')
+                        ? 'Empleados'
+                        : workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
                     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
                     const empleados = DB.getEmpleados();
