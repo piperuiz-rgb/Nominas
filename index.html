@@ -1495,7 +1495,6 @@
 
             empleados.forEach(emp => {
                 const cuenta465 = 4650000000 + parseInt(emp.numero);
-                const cuenta460 = 4600000000 + parseInt(emp.numero);
 
                 if (emp.totalLiq > 0) {
                     asiento.push({
@@ -1513,7 +1512,7 @@
                 if (emp.dietas > 0) {
                     asiento.push({
                         fecha, referencia, diario,
-                        cuenta: cuenta460,
+                        cuenta: cuenta465,
                         etiqueta: `Anticipo Dietas Emp. ${emp.numero}`,
                         debe: null,
                         haber: emp.dietas,
@@ -1527,7 +1526,7 @@
                 if (anticipoNeto > 0) {
                     asiento.push({
                         fecha, referencia, diario,
-                        cuenta: cuenta460,
+                        cuenta: cuenta465,
                         etiqueta: `Anticipo Emp. ${emp.numero}`,
                         debe: null,
                         haber: anticipoNeto,
