@@ -275,10 +275,12 @@
 
     var irpfSection = '';
     if (r.irpfTotales) {
-      irpfSection = '<div class="section-title">Bases IRPF</div>'
-        + '<table class="dist-table"><thead><tr><th>Concepto</th><th>Base</th></tr></thead><tbody>'
-        + '<tr><td>Dinerario (B.IRPF DIN)</td><td class="num">' + fmt(r.irpfTotales.din) + '</td></tr>'
-        + '<tr><td>En especie (B.IRPF ESP)</td><td class="num">' + fmt(r.irpfTotales.esp) + '</td></tr>'
+      var totalIrpf = r.irpfTotales.din + r.irpfTotales.esp;
+      irpfSection = '<div class="section-title">Retención IRPF</div>'
+        + '<table class="dist-table"><thead><tr><th>Concepto</th><th>Total retenido</th></tr></thead><tbody>'
+        + '<tr><td>Dinerario (0999-TRI.IRPF)</td><td class="num">' + fmt(r.irpfTotales.din) + '</td></tr>'
+        + '<tr><td>No dinerario (0987-I.I.C.CT)</td><td class="num">' + fmt(r.irpfTotales.esp) + '</td></tr>'
+        + '<tr style="font-weight:600;background:#f8f9fa"><td>TOTAL IRPF</td><td class="num">' + fmt(totalIrpf) + '</td></tr>'
         + '</tbody></table>';
     }
 

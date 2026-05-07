@@ -309,17 +309,22 @@ function writeDistribucionSection(sheet, dist, irpfTotales, startRow) {
   var fmtPct = function(v, total) { return total > 0 ? Math.round(v / total * 10000) / 100 : 0; };
   var row = startRow;
 
-  // --- Bases IRPF ---
-  sheet.getRange(row, 1).setValue('BASES IRPF').setFontWeight('bold').setBackground('#e8f0fe').setFontColor('#185abc');
+  // --- Retención IRPF ---
+  sheet.getRange(row, 1).setValue('RETENCIÓN IRPF').setFontWeight('bold').setBackground('#e8f0fe').setFontColor('#185abc');
   sheet.getRange(row, 1, 1, 4).setBackground('#e8f0fe');
   row++;
-  sheet.getRange(row, 1, 1, 4).setValues([['Concepto', 'Base total', '', '']]);
+  sheet.getRange(row, 1, 1, 4).setValues([['Concepto', 'Total retenido', '', '']]);
   sheet.getRange(row, 1, 1, 4).setFontWeight('bold').setBackground('#f1f3f4');
   row++;
-  sheet.getRange(row, 1, 1, 4).setValues([['B.IRPF Dinerario', irpfTotales.din, '', '']]);
+  sheet.getRange(row, 1, 1, 4).setValues([['IRPF Dinerario (0999-TRI.IRPF)', irpfTotales.din, '', '']]);
   sheet.getRange(row, 2).setNumberFormat('#,##0.00');
   row++;
-  sheet.getRange(row, 1, 1, 4).setValues([['B.IRPF En especie', irpfTotales.esp, '', '']]);
+  sheet.getRange(row, 1, 1, 4).setValues([['IRPF No dinerario (0987-I.I.C.CT)', irpfTotales.esp, '', '']]);
+  sheet.getRange(row, 2).setNumberFormat('#,##0.00');
+  row++;
+  // Total combinado
+  sheet.getRange(row, 1, 1, 4).setValues([['TOTAL IRPF', round2(irpfTotales.din + irpfTotales.esp), '', '']]);
+  sheet.getRange(row, 1, 1, 2).setFontWeight('bold').setBackground('#f8f9fa');
   sheet.getRange(row, 2).setNumberFormat('#,##0.00');
   row += 2;
 
@@ -443,7 +448,9 @@ function processNominas(params) {
     vivienda:     findColumnIndex(headers, 'VIVIENDA'),
     dietas:       findColumnIndex(headers, 'DIETAS'),
     anticipo:     findColumnIndex(headers, 'ANTICIPO'),
-    devPrestamo:  findColumnIndex(headers, '0705-Dev.')
+    devPrestamo:  findColumnIndex(headers, '0705-Dev.'),
+    retIrpfDin:   findColumnIndex(headers, '0999-TRI.IRPF'),
+    retIrpfEsp:   findColumnIndex(headers, '0987-I.I.C.CT')
   };
 
   var requiredCols = ['numEmpleado', 'totBruto', 'totalLiq', 'ssEmpresa', 'ssTotal',
@@ -518,7 +525,9 @@ function processNominas(params) {
       baseExenta:  baseExenta,
       dietas:      dietas,
       anticipo:    anticipo,
-      devPrestamo: colIndices.devPrestamo >= 0 ? parseValue(row[colIndices.devPrestamo]) : 0
+      devPrestamo:  colIndices.devPrestamo >= 0 ? parseValue(row[colIndices.devPrestamo]) : 0,
+      retIrpfDin:   colIndices.retIrpfDin >= 0 ? parseValue(row[colIndices.retIrpfDin]) : 0,
+      retIrpfEsp:   colIndices.retIrpfEsp >= 0 ? parseValue(row[colIndices.retIrpfEsp]) : 0
     };
 
     empleados.push(empleado);
@@ -531,8 +540,8 @@ function processNominas(params) {
   // 5. Calcular distribución y totales IRPF
   var dist = calcularDistribucion(empleados);
   var irpfTotales = {
-    din: round2(empleados.reduce(function(s, e) { return s + e.irpfDin; }, 0)),
-    esp: round2(empleados.reduce(function(s, e) { return s + e.irpfEsp; }, 0))
+    din: round2(empleados.reduce(function(s, e) { return s + e.retIrpfDin; }, 0)),
+    esp: round2(empleados.reduce(function(s, e) { return s + e.retIrpfEsp; }, 0))
   };
 
   // 6. Generar asiento
