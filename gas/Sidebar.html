@@ -110,6 +110,38 @@
       color: #5f6368;
       margin-top: 4px;
     }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #185abc;
+      background: #e8f0fe;
+      padding: 5px 8px;
+      margin-top: 12px;
+      border-radius: 4px;
+    }
+
+    .dist-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin-top: 4px;
+    }
+    .dist-table th {
+      background: #f1f3f4;
+      padding: 5px 8px;
+      text-align: left;
+      font-weight: 600;
+      color: #5f6368;
+      border-bottom: 1px solid #dadce0;
+    }
+    .dist-table td {
+      padding: 4px 8px;
+      border-bottom: 1px solid #f1f3f4;
+    }
+    .dist-table .num { text-align: right; font-variant-numeric: tabular-nums; }
   </style>
 </head>
 <body>
@@ -226,6 +258,9 @@
       });
   }
 
+  var DEPT_NAMES = { 1:'Logística', 2:'Marketing', 3:'Comercial', 4:'Producción', 5:'Administración', 6:'Dirección' };
+  var CENTRO_NAMES = { 1:'Tienda Ibiza', 2:'Tienda Madrid', 3:'Pto. Banús', 4:'Oficinas', 5:'Almacén' };
+
   function showResult(r) {
     var div = document.getElementById('result');
     div.style.display = 'block';
@@ -233,9 +268,24 @@
     var warning = '';
     if (r.sinDBList && r.sinDBList.length > 0) {
       warning = '<div class="alert alert-warning" style="margin-top:10px;">'
-        + '<strong>Empleados sin base de datos:</strong>'
+        + '<strong>Empleados sin base de datos:</strong> '
         + r.sinDBList.join(', ')
         + '<br>Sin departamento ni centro. Añádelos en "Gestionar Empleados" y vuelve a procesar.</div>';
+    }
+
+    var irpfSection = '';
+    if (r.irpfTotales) {
+      irpfSection = '<div class="section-title">Bases IRPF</div>'
+        + '<table class="dist-table"><thead><tr><th>Concepto</th><th>Base</th></tr></thead><tbody>'
+        + '<tr><td>Dinerario (B.IRPF DIN)</td><td class="num">' + fmt(r.irpfTotales.din) + '</td></tr>'
+        + '<tr><td>En especie (B.IRPF ESP)</td><td class="num">' + fmt(r.irpfTotales.esp) + '</td></tr>'
+        + '</tbody></table>';
+    }
+
+    var distSection = '';
+    if (r.dist) {
+      distSection += buildDistTable('Distribución por Departamento', r.dist.depts, r.dist.totales, DEPT_NAMES);
+      distSection += buildDistTable('Distribución por Centro', r.dist.centros, r.dist.totales, CENTRO_NAMES);
     }
 
     div.innerHTML = '<div class="alert alert-success">'
@@ -247,7 +297,27 @@
       + '<div class="stat"><div class="stat-val">' + fmt(r.totalBruto) + '</div><div class="stat-lbl">Bruto total</div></div>'
       + '<div class="stat"><div class="stat-val">' + fmt(r.totalLiquido) + '</div><div class="stat-lbl">Líquido total</div></div>'
       + '</div>'
-      + warning;
+      + warning
+      + irpfSection
+      + distSection;
+  }
+
+  function buildDistTable(title, data, totales, names) {
+    var keys = Object.keys(data.c640 || {}).sort(function(a, b) { return a - b; });
+    if (!keys.length) return '';
+    var html = '<div class="section-title">' + title + '</div>'
+      + '<table class="dist-table"><thead><tr>'
+      + '<th>Nombre</th><th>% 640</th><th>% 642</th>'
+      + '</tr></thead><tbody>';
+    keys.forEach(function(k) {
+      var pct640 = totales.c640 > 0 ? (data.c640[k] / totales.c640 * 100).toFixed(1) : '0.0';
+      var pct642 = totales.c642 > 0 ? ((data.c642[k] || 0) / totales.c642 * 100).toFixed(1) : '0.0';
+      html += '<tr><td>' + (names[k] || k) + '</td>'
+        + '<td class="num">' + pct640 + '%</td>'
+        + '<td class="num">' + pct642 + '%</td></tr>';
+    });
+    html += '</tbody></table>';
+    return html;
   }
 
   function showError(msg) {

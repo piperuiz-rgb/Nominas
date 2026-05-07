@@ -239,7 +239,7 @@ function getAsientoSheet() {
   return sheet;
 }
 
-function writeAsientoToSheet(asientoData) {
+function writeAsientoToSheet(asientoData, dist, irpfTotales) {
   var sheet = getAsientoSheet();
   sheet.clearContents();
   sheet.clearFormats();
@@ -269,7 +269,7 @@ function writeAsientoToSheet(asientoData) {
 
   sheet.getRange(1, 1, rows.length, headers.length).setValues(rows);
 
-  // Formato cabecera
+  // Formato cabecera asiento
   var headerRange = sheet.getRange(1, 1, 1, headers.length);
   headerRange.setFontWeight('bold');
   headerRange.setBackground('#4a6fa5');
@@ -286,16 +286,111 @@ function writeAsientoToSheet(asientoData) {
   sheet.setColumnWidth(8, 380);
   sheet.setColumnWidth(9, 80);
 
-  // Formato numérico: cuenta como texto sin comas, importes como moneda
+  // Formato numérico columnas asiento
   if (rows.length > 1) {
-    // Cuenta: número sin separador de miles (es un código de 10 dígitos)
     sheet.getRange(2, 4, rows.length - 1, 1).setNumberFormat('0');
-    // Debe y Haber: moneda española
     sheet.getRange(2, 6, rows.length - 1, 2).setNumberFormat('#,##0.00');
   }
 
   sheet.setFrozenRows(1);
+
+  // ---- Sección de distribución y totales IRPF ----
+  if (dist && irpfTotales) {
+    var startRow = rows.length + 2; // dos filas en blanco después del asiento
+    writeDistribucionSection(sheet, dist, irpfTotales, startRow);
+  }
+
   sheet.activate();
+}
+
+function writeDistribucionSection(sheet, dist, irpfTotales, startRow) {
+  var DEPT_NAMES = { 1:'Logística', 2:'Marketing', 3:'Comercial', 4:'Producción', 5:'Administración', 6:'Dirección' };
+  var CENTRO_NAMES = { 1:'Tienda Ibiza', 2:'Tienda Madrid', 3:'Tienda Puerto Banús', 4:'Oficinas centrales', 5:'Almacén Badalona' };
+  var fmtPct = function(v, total) { return total > 0 ? Math.round(v / total * 10000) / 100 : 0; };
+  var row = startRow;
+
+  // --- Bases IRPF ---
+  sheet.getRange(row, 1).setValue('BASES IRPF').setFontWeight('bold').setBackground('#e8f0fe').setFontColor('#185abc');
+  sheet.getRange(row, 1, 1, 4).setBackground('#e8f0fe');
+  row++;
+  sheet.getRange(row, 1, 1, 4).setValues([['Concepto', 'Base total', '', '']]);
+  sheet.getRange(row, 1, 1, 4).setFontWeight('bold').setBackground('#f1f3f4');
+  row++;
+  sheet.getRange(row, 1, 1, 4).setValues([['B.IRPF Dinerario', irpfTotales.din, '', '']]);
+  sheet.getRange(row, 2).setNumberFormat('#,##0.00');
+  row++;
+  sheet.getRange(row, 1, 1, 4).setValues([['B.IRPF En especie', irpfTotales.esp, '', '']]);
+  sheet.getRange(row, 2).setNumberFormat('#,##0.00');
+  row += 2;
+
+  // --- Distribución por departamento ---
+  sheet.getRange(row, 1).setValue('DISTRIBUCIÓN POR DEPARTAMENTO').setFontWeight('bold').setBackground('#e8f0fe').setFontColor('#185abc');
+  sheet.getRange(row, 1, 1, 5).setBackground('#e8f0fe');
+  row++;
+  sheet.getRange(row, 1, 1, 5).setValues([['Departamento', '% Cta. 640', 'Importe 640', '% Cta. 642', 'Importe 642']]);
+  sheet.getRange(row, 1, 1, 5).setFontWeight('bold').setBackground('#f1f3f4');
+  row++;
+
+  var deptKeys = Object.keys(dist.depts.c640).sort();
+  for (var d = 0; d < deptKeys.length; d++) {
+    var dk = deptKeys[d];
+    var imp640 = round2(dist.depts.c640[dk] || 0);
+    var imp642 = round2(dist.depts.c642[dk] || 0);
+    sheet.getRange(row, 1, 1, 5).setValues([[
+      (DEPT_NAMES[dk] || ('Depto. ' + dk)),
+      fmtPct(imp640, dist.totales.c640) / 100,
+      imp640,
+      fmtPct(imp642, dist.totales.c642) / 100,
+      imp642
+    ]]);
+    sheet.getRange(row, 2).setNumberFormat('0.00%');
+    sheet.getRange(row, 3).setNumberFormat('#,##0.00');
+    sheet.getRange(row, 4).setNumberFormat('0.00%');
+    sheet.getRange(row, 5).setNumberFormat('#,##0.00');
+    row++;
+  }
+  // Fila total
+  sheet.getRange(row, 1, 1, 5).setValues([['TOTAL', 1, round2(dist.totales.c640), 1, round2(dist.totales.c642)]]);
+  sheet.getRange(row, 1, 1, 5).setFontWeight('bold').setBackground('#f8f9fa');
+  sheet.getRange(row, 2).setNumberFormat('0.00%');
+  sheet.getRange(row, 3).setNumberFormat('#,##0.00');
+  sheet.getRange(row, 4).setNumberFormat('0.00%');
+  sheet.getRange(row, 5).setNumberFormat('#,##0.00');
+  row += 2;
+
+  // --- Distribución por centro ---
+  sheet.getRange(row, 1).setValue('DISTRIBUCIÓN POR CENTRO').setFontWeight('bold').setBackground('#e8f0fe').setFontColor('#185abc');
+  sheet.getRange(row, 1, 1, 5).setBackground('#e8f0fe');
+  row++;
+  sheet.getRange(row, 1, 1, 5).setValues([['Centro', '% Cta. 640', 'Importe 640', '% Cta. 642', 'Importe 642']]);
+  sheet.getRange(row, 1, 1, 5).setFontWeight('bold').setBackground('#f1f3f4');
+  row++;
+
+  var centroKeys = Object.keys(dist.centros.c640).sort();
+  for (var c = 0; c < centroKeys.length; c++) {
+    var ck = centroKeys[c];
+    var ci640 = round2(dist.centros.c640[ck] || 0);
+    var ci642 = round2(dist.centros.c642[ck] || 0);
+    sheet.getRange(row, 1, 1, 5).setValues([[
+      (CENTRO_NAMES[ck] || ('Centro ' + ck)),
+      fmtPct(ci640, dist.totales.c640) / 100,
+      ci640,
+      fmtPct(ci642, dist.totales.c642) / 100,
+      ci642
+    ]]);
+    sheet.getRange(row, 2).setNumberFormat('0.00%');
+    sheet.getRange(row, 3).setNumberFormat('#,##0.00');
+    sheet.getRange(row, 4).setNumberFormat('0.00%');
+    sheet.getRange(row, 5).setNumberFormat('#,##0.00');
+    row++;
+  }
+  // Fila total
+  sheet.getRange(row, 1, 1, 5).setValues([['TOTAL', 1, round2(dist.totales.c640), 1, round2(dist.totales.c642)]]);
+  sheet.getRange(row, 1, 1, 5).setFontWeight('bold').setBackground('#f8f9fa');
+  sheet.getRange(row, 2).setNumberFormat('0.00%');
+  sheet.getRange(row, 3).setNumberFormat('#,##0.00');
+  sheet.getRange(row, 4).setNumberFormat('0.00%');
+  sheet.getRange(row, 5).setNumberFormat('#,##0.00');
 }
 
 // ---- LÓGICA DE NEGOCIO ----
@@ -387,6 +482,7 @@ function processNominas(params) {
     var seguroS    = colIndices.seguroS >= 0 ? parseValue(row[colIndices.seguroS]) : 0;
     var vivienda   = parseValue(row[colIndices.vivienda]);
     var irpfDin    = parseValue(row[colIndices.irpfDin]);
+    var irpfEsp    = parseValue(row[colIndices.irpfEsp]);
     var irpfIrr    = parseValue(row[colIndices.irpfIrr]);
     var totBruto   = parseValue(row[colIndices.totBruto]);
     var dietas     = parseValue(row[colIndices.dietas]);
@@ -411,6 +507,7 @@ function processNominas(params) {
       ssEmpresa:   parseValue(row[colIndices.ssEmpresa]),
       ssTotal:     parseValue(row[colIndices.ssTotal]),
       irpfDin:     irpfDin,
+      irpfEsp:     irpfEsp,
       irpfIrr:     irpfIrr,
       difSala:     parseValue(row[colIndices.difSala]),
       seguroMTotal: seguroMTotal,
@@ -431,13 +528,20 @@ function processNominas(params) {
     throw new Error('No se encontraron datos de empleados en el archivo.');
   }
 
-  // 5. Generar asiento
+  // 5. Calcular distribución y totales IRPF
+  var dist = calcularDistribucion(empleados);
+  var irpfTotales = {
+    din: round2(empleados.reduce(function(s, e) { return s + e.irpfDin; }, 0)),
+    esp: round2(empleados.reduce(function(s, e) { return s + e.irpfEsp; }, 0))
+  };
+
+  // 6. Generar asiento
   var asientoData = generarDatosAsiento(empleados, fecha, referencia, diario);
 
-  // 6. Escribir en la pestaña Asiento
-  writeAsientoToSheet(asientoData);
+  // 7. Escribir en la pestaña Asiento (asiento + distribución)
+  writeAsientoToSheet(asientoData, dist, irpfTotales);
 
-  // 7. Actualizar histórico
+  // 8. Actualizar histórico
   var totBrutoTotal = empleados.reduce(function(s, e) { return s + e.totBruto; }, 0);
   var totalLiqTotal = empleados.reduce(function(s, e) { return s + e.totalLiq; }, 0);
   addHistorico({
@@ -456,8 +560,49 @@ function processNominas(params) {
     totalBruto: round2(totBrutoTotal),
     totalLiquido: round2(totalLiqTotal),
     sinDBList: sinDBList,
-    lineas: asientoData.length
+    lineas: asientoData.length,
+    dist: dist,
+    irpfTotales: irpfTotales
   };
+}
+
+function calcularDistribucion(empleados) {
+  var dist = {
+    depts:   { c640: {}, c642: {} },
+    centros: { c640: {}, c642: {} },
+    totales: { c640: 0, c642: 0 }
+  };
+
+  for (var i = 0; i < empleados.length; i++) {
+    var emp = empleados[i];
+    // 640: totBruto (= irpfDin + especieTotal + irpfIrr + baseExenta)
+    var imp640 = emp.totBruto;
+    var imp642 = emp.ssEmpresa;
+
+    dist.totales.c640 += imp640;
+    dist.totales.c642 += imp642;
+
+    var dept = String(emp.departamento);
+    dist.depts.c640[dept] = (dist.depts.c640[dept] || 0) + imp640;
+    dist.depts.c642[dept] = (dist.depts.c642[dept] || 0) + imp642;
+
+    // Centro(s): puede haber varios separados por espacios
+    var centros = String(emp.centro).split(/\s+/).filter(function(c) { return c && !isNaN(c) && parseInt(c) > 0; }).map(Number);
+    if (centros.length === 0) {
+      var n = parseInt(emp.centro);
+      if (n > 0) centros = [n];
+    }
+    if (centros.length === 0) continue;
+
+    var factor = 1 / centros.length;
+    for (var j = 0; j < centros.length; j++) {
+      var ck = String(centros[j]);
+      dist.centros.c640[ck] = (dist.centros.c640[ck] || 0) + imp640 * factor;
+      dist.centros.c642[ck] = (dist.centros.c642[ck] || 0) + imp642 * factor;
+    }
+  }
+
+  return dist;
 }
 
 function generarDatosAsiento(empleados, fecha, referencia, diario) {
