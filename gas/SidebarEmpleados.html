@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Google Sans', Arial, sans-serif; font-size: 13px; color: #202124; background: #f8f9fa; }
+
+    .header {
+      background: #4a6fa5;
+      color: #fff;
+      padding: 14px 16px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #e8eaed;
+      background: #fff;
+    }
+
+    .btn {
+      padding: 7px 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary { background: #4a6fa5; color: #fff; }
+    .btn-primary:hover { background: #3a5a8f; }
+    .btn-danger  { background: #c0392b; color: #fff; }
+    .btn-danger:hover { background: #a93226; }
+    .btn-secondary { background: #e8eaed; color: #202124; }
+    .btn-secondary:hover { background: #dadce0; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th {
+      background: #e8f0fe;
+      padding: 8px 10px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 11px;
+      color: #185abc;
+      border-bottom: 2px solid #aecbfa;
+    }
+    td { padding: 7px 10px; border-bottom: 1px solid #e8eaed; vertical-align: middle; }
+    tr:hover td { background: #f1f3f4; }
+    .actions { display: flex; gap: 4px; }
+    .btn-icon {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 32px 16px;
+      color: #5f6368;
+    }
+    .empty-icon { font-size: 32px; margin-bottom: 8px; }
+
+    /* Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-backdrop.visible { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 10px;
+      width: 320px;
+      padding: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+    }
+    .modal h3 { font-size: 15px; margin-bottom: 16px; color: #202124; }
+    .field { margin-bottom: 12px; }
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #5f6368;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 4px;
+    }
+    .field input,
+    .field select {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+    }
+    .field input:focus,
+    .field select:focus {
+      border-color: #4a6fa5;
+      box-shadow: 0 0 0 2px rgba(74,111,165,0.15);
+    }
+    .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+    .alert {
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin: 8px 16px;
+    }
+    .alert-success { background: #e6f4ea; border: 1px solid #a8d5b5; color: #1e7e34; }
+    .alert-error   { background: #fce8e6; border: 1px solid #f5c6c3; color: #c0392b; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #e8f0fe;
+      color: #185abc;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(74,111,165,0.3);
+      border-top-color: #4a6fa5;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="header">Base de Datos de Empleados</div>
+
+<div class="toolbar">
+  <button class="btn btn-primary" onclick="abrirModal()">+ Nuevo</button>
+  <button class="btn btn-secondary" id="reloadBtn" onclick="cargarEmpleados()">↻ Actualizar</button>
+</div>
+
+<div id="msgDiv"></div>
+<div id="tableDiv"><div class="empty"><div class="spinner"></div><p style="margin-top:8px">Cargando…</p></div></div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <h3 id="modalTitle">Nuevo Empleado</h3>
+
+    <div class="field">
+      <label>Código Empleado (6 dígitos)</label>
+      <input type="text" id="empCodigo" maxlength="6" placeholder="000001">
+    </div>
+
+    <div class="field">
+      <label>Departamento</label>
+      <select id="empDepartamento">
+        <option value="">Seleccionar…</option>
+        <option value="1">1 – Logística</option>
+        <option value="2">2 – Marketing</option>
+        <option value="3">3 – Comercial</option>
+        <option value="4">4 – Producción</option>
+        <option value="5">5 – Administración</option>
+        <option value="6">6 – Dirección</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Centro(s) de Trabajo</label>
+      <input type="text" id="empCentro" placeholder="Ej: 4  o  1 2 3">
+      <small style="color:#5f6368; font-size:11px; display:block; margin-top:3px;">
+        Varios centros separados por espacios. Opciones: 1 Ibiza · 2 Madrid · 3 Puerto Banús · 4 Oficinas · 5 Almacén
+      </small>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var DEPTS = { 1:'Logística', 2:'Marketing', 3:'Comercial', 4:'Producción', 5:'Administración', 6:'Dirección' };
+  var editandoCodigo = null;
+
+  function cargarEmpleados() {
+    document.getElementById('tableDiv').innerHTML = '<div class="empty"><div class="spinner"></div><p style="margin-top:8px">Cargando…</p></div>';
+    google.script.run
+      .withSuccessHandler(renderTabla)
+      .withFailureHandler(function(e) { showMsg(e.message, 'error'); })
+      .getEmpleadosLista();
+  }
+
+  function renderTabla(lista) {
+    if (!lista || lista.length === 0) {
+      document.getElementById('tableDiv').innerHTML =
+        '<div class="empty"><div class="empty-icon">👥</div><p>No hay empleados registrados.</p><p style="margin-top:6px;font-size:11px">Pulsa "+ Nuevo" para añadir el primero.</p></div>';
+      return;
+    }
+
+    var html = '<div class="table-wrap"><table><thead><tr>'
+      + '<th>Código</th><th>Departamento</th><th>Centro(s)</th><th></th>'
+      + '</tr></thead><tbody>';
+
+    lista.forEach(function(emp) {
+      html += '<tr>'
+        + '<td><span class="badge">' + emp.codigo + '</span></td>'
+        + '<td>' + (DEPTS[emp.departamento] || '—') + '</td>'
+        + '<td>' + (emp.centro || '—') + '</td>'
+        + '<td><div class="actions">'
+        + '<button class="btn btn-secondary btn-icon" onclick="abrirModal(\'' + emp.codigo + '\')">✏️</button>'
+        + '<button class="btn btn-danger btn-icon" onclick="borrar(\'' + emp.codigo + '\')">🗑</button>'
+        + '</div></td>'
+        + '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    document.getElementById('tableDiv').innerHTML = html;
+  }
+
+  function abrirModal(codigo) {
+    editandoCodigo = codigo || null;
+    document.getElementById('modalTitle').textContent = codigo ? 'Editar Empleado' : 'Nuevo Empleado';
+
+    if (codigo) {
+      google.script.run
+        .withSuccessHandler(function(lista) {
+          var emp = lista.find(function(e) { return e.codigo === codigo; });
+          if (emp) {
+            document.getElementById('empCodigo').value = emp.codigo;
+            document.getElementById('empCodigo').disabled = true;
+            document.getElementById('empDepartamento').value = emp.departamento;
+            document.getElementById('empCentro').value = emp.centro;
+          }
+          document.getElementById('modal').classList.add('visible');
+        })
+        .withFailureHandler(function(e) { showMsg(e.message, 'error'); })
+        .getEmpleadosLista();
+    } else {
+      document.getElementById('empCodigo').value = '';
+      document.getElementById('empCodigo').disabled = false;
+      document.getElementById('empDepartamento').value = '';
+      document.getElementById('empCentro').value = '';
+      document.getElementById('modal').classList.add('visible');
+    }
+  }
+
+  function cerrarModal() {
+    document.getElementById('modal').classList.remove('visible');
+    editandoCodigo = null;
+  }
+
+  function guardar() {
+    var codigo = document.getElementById('empCodigo').value.trim();
+    var departamento = document.getElementById('empDepartamento').value;
+    var centro = document.getElementById('empCentro').value.trim();
+
+    if (!codigo || isNaN(codigo)) { alert('El código debe ser numérico.'); return; }
+    if (!departamento) { alert('Selecciona un departamento.'); return; }
+    if (!centro) { alert('Indica al menos un centro de trabajo.'); return; }
+
+    google.script.run
+      .withSuccessHandler(function(lista) {
+        cerrarModal();
+        renderTabla(lista);
+        showMsg('Empleado ' + String(codigo).padStart(6,'0') + ' guardado correctamente.', 'success');
+      })
+      .withFailureHandler(function(e) { showMsg(e.message, 'error'); })
+      .guardarEmpleado(codigo, departamento, centro);
+  }
+
+  function borrar(codigo) {
+    if (!confirm('¿Eliminar empleado ' + codigo + '?')) return;
+    google.script.run
+      .withSuccessHandler(function(lista) {
+        renderTabla(lista);
+        showMsg('Empleado ' + codigo + ' eliminado.', 'success');
+      })
+      .withFailureHandler(function(e) { showMsg(e.message, 'error'); })
+      .eliminarEmpleado(codigo);
+  }
+
+  function showMsg(msg, type) {
+    var div = document.getElementById('msgDiv');
+    div.innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
+    setTimeout(function() { div.innerHTML = ''; }, 4000);
+  }
+
+  // Cargar al abrir
+  cargarEmpleados();
+</script>
+</body>
+</html>

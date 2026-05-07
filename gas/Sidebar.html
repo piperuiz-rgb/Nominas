@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Google Sans', Arial, sans-serif; font-size: 13px; color: #202124; background: #f8f9fa; }
+
+    .header {
+      background: #4a6fa5;
+      color: #fff;
+      padding: 14px 16px;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    .content { padding: 16px; }
+
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #5f6368;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 5px;
+    }
+    .field select,
+    .field input[type="text"],
+    .field input[type="date"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #202124;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .field select:focus,
+    .field input:focus {
+      border-color: #4a6fa5;
+      box-shadow: 0 0 0 2px rgba(74,111,165,0.15);
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn-primary { background: #4a6fa5; color: #fff; }
+    .btn-primary:hover { background: #3a5a8f; }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .alert {
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-top: 14px;
+      line-height: 1.5;
+    }
+    .alert-success { background: #e6f4ea; border: 1px solid #a8d5b5; color: #1e7e34; }
+    .alert-error   { background: #fce8e6; border: 1px solid #f5c6c3; color: #c0392b; }
+    .alert-warning { background: #fef7e0; border: 1px solid #f8d775; color: #856404; }
+    .alert-info    { background: #e8f0fe; border: 1px solid #aecbfa; color: #185abc; }
+
+    .alert strong { display: block; margin-bottom: 4px; }
+
+    .stat-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .stat {
+      flex: 1;
+      background: #fff;
+      border: 1px solid #dadce0;
+      border-radius: 6px;
+      padding: 8px;
+      text-align: center;
+    }
+    .stat-val { font-size: 16px; font-weight: 700; color: #4a6fa5; }
+    .stat-lbl { font-size: 10px; color: #5f6368; margin-top: 2px; }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.5);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .divider { border: none; border-top: 1px solid #e8eaed; margin: 16px 0; }
+
+    .file-count {
+      font-size: 11px;
+      color: #5f6368;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">Generador de Asiento de Nóminas</div>
+
+<div class="content">
+  <div id="loadingFiles" class="alert alert-info">
+    <span class="spinner" style="border-color:rgba(24,90,188,0.4); border-top-color:#185abc;"></span>
+    Buscando archivos en la carpeta <strong>APLICACION NOMINAS</strong>…
+  </div>
+
+  <form id="form" style="display:none" onsubmit="procesar(event)">
+
+    <div class="field">
+      <label>Archivo de nóminas (.xlsx)</label>
+      <select id="fileSelect"></select>
+      <div class="file-count" id="fileCount"></div>
+    </div>
+
+    <div class="field">
+      <label>Fecha del asiento</label>
+      <input type="date" id="fecha" required>
+    </div>
+
+    <div class="field">
+      <label>Referencia</label>
+      <input type="text" id="referencia" placeholder="Ej: Nómina enero 2026" required>
+    </div>
+
+    <div class="field">
+      <label>Diario</label>
+      <input type="text" id="diario" placeholder="Ej: NOMI" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary" id="processBtn">Generar Asiento</button>
+  </form>
+
+  <div id="result" style="display:none"></div>
+  <div id="errorDiv" style="display:none"></div>
+</div>
+
+<script>
+  // Fecha por defecto: último día del mes anterior
+  (function() {
+    var today = new Date();
+    var lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+    var yyyy = lastDay.getFullYear();
+    var mm = String(lastDay.getMonth() + 1).padStart(2, '0');
+    var dd = String(lastDay.getDate()).padStart(2, '0');
+    document.getElementById('fecha').value = yyyy + '-' + mm + '-' + dd;
+
+    var meses = ['enero','febrero','marzo','abril','mayo','junio',
+                 'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    document.getElementById('referencia').value = 'Nómina ' + meses[lastDay.getMonth()] + ' ' + yyyy;
+    document.getElementById('diario').value = 'NOMI';
+  })();
+
+  // Cargar lista de archivos al abrir
+  google.script.run
+    .withSuccessHandler(function(files) {
+      document.getElementById('loadingFiles').style.display = 'none';
+      var form = document.getElementById('form');
+      form.style.display = 'block';
+
+      var sel = document.getElementById('fileSelect');
+      if (files.length === 0) {
+        sel.innerHTML = '<option value="">No hay archivos .xlsx en la carpeta</option>';
+        document.getElementById('processBtn').disabled = true;
+        document.getElementById('fileCount').textContent = 'Sube un archivo .xlsx a la carpeta "APLICACION NOMINAS" de tu Drive.';
+      } else {
+        files.forEach(function(f) {
+          var opt = document.createElement('option');
+          opt.value = f.id;
+          opt.textContent = f.name;
+          sel.appendChild(opt);
+        });
+        document.getElementById('fileCount').textContent = files.length + ' archivo(s) encontrado(s). Se selecciona el más reciente.';
+      }
+    })
+    .withFailureHandler(function(err) {
+      document.getElementById('loadingFiles').style.display = 'none';
+      showError(err.message || String(err));
+    })
+    .getArchivosNominas();
+
+  function procesar(e) {
+    e.preventDefault();
+    hideMessages();
+
+    var fileId = document.getElementById('fileSelect').value;
+    if (!fileId) { showError('Selecciona un archivo de nóminas.'); return; }
+
+    var btn = document.getElementById('processBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Procesando…';
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        btn.disabled = false;
+        btn.textContent = 'Generar Asiento';
+        showResult(result);
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.textContent = 'Generar Asiento';
+        showError(err.message || String(err));
+      })
+      .processNominas({
+        fileId: fileId,
+        fecha: document.getElementById('fecha').value,
+        referencia: document.getElementById('referencia').value,
+        diario: document.getElementById('diario').value
+      });
+  }
+
+  function showResult(r) {
+    var div = document.getElementById('result');
+    div.style.display = 'block';
+
+    var warning = '';
+    if (r.sinDBList && r.sinDBList.length > 0) {
+      warning = '<div class="alert alert-warning" style="margin-top:10px;">'
+        + '<strong>Empleados sin base de datos:</strong>'
+        + r.sinDBList.join(', ')
+        + '<br>Sin departamento ni centro. Añádelos en "Gestionar Empleados" y vuelve a procesar.</div>';
+    }
+
+    div.innerHTML = '<div class="alert alert-success">'
+      + '<strong>✓ Asiento generado en la pestaña "Asiento"</strong>'
+      + r.lineas + ' líneas contables generadas.'
+      + '</div>'
+      + '<div class="stat-row">'
+      + '<div class="stat"><div class="stat-val">' + r.empleados + '</div><div class="stat-lbl">Empleados</div></div>'
+      + '<div class="stat"><div class="stat-val">' + fmt(r.totalBruto) + '</div><div class="stat-lbl">Bruto total</div></div>'
+      + '<div class="stat"><div class="stat-val">' + fmt(r.totalLiquido) + '</div><div class="stat-lbl">Líquido total</div></div>'
+      + '</div>'
+      + warning;
+  }
+
+  function showError(msg) {
+    var div = document.getElementById('errorDiv');
+    div.style.display = 'block';
+    div.innerHTML = '<div class="alert alert-error"><strong>Error</strong>' + msg + '</div>';
+  }
+
+  function hideMessages() {
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('errorDiv').style.display = 'none';
+  }
+
+  function fmt(n) {
+    return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + ' €';
+  }
+</script>
+</body>
+</html>
